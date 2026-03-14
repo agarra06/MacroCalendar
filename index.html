@@ -197,14 +197,24 @@
 const KEYWORDS_LVL1 = [
   'war declared','military attack','nuclear','bank collapse','market halt',
   'circuit breaker','emergency declaration','debt default','sovereign default',
-  'federal reserve emergency','rate cut emergency','pandemic','terrorist attack'
+  'federal reserve emergency','rate cut emergency','pandemic','terrorist attack',
+  'market closed','trading halted','flash crash'
 ];
 
 const KEYWORDS_LVL2 = [
-  'trump','tariff','tariffs','sanction','sanctions','fed chair','powell speaks',
+  'tariff','tariffs','sanction','sanctions','fed chair','powell speaks',
   'fomc','rate hike','rate cut','inflation surges','cpi beats','jobs report',
   'unemployment','gdp','recession','earnings beat','earnings miss',
-  'china trade','ukraine','iran','oil price spike','yield spike'
+  'china trade','ukraine','iran','oil price spike','yield spike',
+  'debt ceiling','government shutdown','banking crisis'
+];
+
+// Trump uniquement sur actions concrètes, pas les opinions/drama
+const KEYWORDS_TRUMP = [
+  'trump tariff','trump sanction','trump sign','trump order','trump announces',
+  'trump declares','trump imposes','trump threatens','trump executive',
+  'trump fires','trump bans','trump deal','trump trade','trump tax',
+  'trump market','trump fed','trump rate','trump china','trump iran'
 ];
 
 // ── State ──────────────────────────────────────────────────
@@ -250,7 +260,7 @@ function timeAgo(dateStr) {
 function classifyNews(title) {
   const t = title.toLowerCase();
   if (KEYWORDS_LVL1.some(k => t.includes(k))) return 'lvl1';
-  if (t.includes('trump')) return 'trump';
+  if (KEYWORDS_TRUMP.some(k => t.includes(k))) return 'trump';
   if (KEYWORDS_LVL2.some(k => t.includes(k))) return 'lvl2';
   return 'normal';
 }
