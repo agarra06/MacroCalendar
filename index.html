@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Macro Calendar</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0d;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+    padding: 12px;
+  }
+
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .subtitle {
+    color: #666;
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+
+  /* Fenêtre 19h-21h */
+  .window-status {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .window-safe { background: #0f2b14; border: 1px solid #1a5c28; color: #4ade80; }
+  .window-risky { background: #2b0f0f; border: 1px solid #7f1d1d; color: #f87171; }
+  .window-caution { background: #2b220f; border: 1px solid #7f4f1d; color: #fb923c; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .tab {
+    padding: 5px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #888;
+    border: 1px solid #222;
+    background: #111;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    background: #1a1a2e;
+    color: #818cf8;
+    border-color: #818cf8;
+  }
+
+  /* Events */
+  .day-label {
+    font-size: 11px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 10px 0 6px;
+    padding-left: 2px;
+  }
+
+  .event {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: #111;
+    border-left: 3px solid transparent;
+    transition: background 0.1s;
+  }
+  .event:hover { background: #161616; }
+
+  .event.high { border-left-color: #ef4444; }
+  .event.medium { border-left-color: #f59e0b; }
+  .event.low { border-left-color: #4b5563; }
+  .event.holiday { border-left-color: #374151; opacity: 0.5; }
+  .event.earnings { border-left-color: #818cf8; }
+
+  .event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+  .high .event-dot { background: #ef4444; }
+  .medium .event-dot { background: #f59e0b; }
+  .low .event-dot { background: #4b5563; }
+  .earnings .event-dot { background: #818cf8; }
+
+  .event-time {
+    color: #666;
+    font-size: 11px;
+    min-width: 42px;
+    padding-top: 1px;
+  }
+
+  .event-body { flex: 1; }
+  .event-title { color: #e0e0e0; line-height: 1.3; }
+  .event-title.high { color: #fca5a5; }
+  .event-title.earnings { color: #c7d2fe; }
+
+  .event-meta {
+    font-size: 10px;
+    color: #555;
+    margin-top: 2px;
+  }
+  .event-values {
+    font-size: 10px;
+    margin-top: 2px;
+    color: #888;
+  }
+  .event-values span { margin-right: 8px; }
+  .forecast { color: #818cf8; }
+  .previous { color: #6b7280; }
+
+  /* Loader */
+  .loader {
+    text-align: center;
+    color: #444;
+    padding: 40px;
+    font-size: 12px;
+  }
+
+  .error-msg {
+    background: #2b0f0f;
+    border: 1px solid #7f1d1d;
+    color: #f87171;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .last-update {
+    text-align: right;
+    color: #333;
+    font-size: 10px;
+    margin-top: 10px;
+  }
+
+  .impact-legend {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #555;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<h1>📅 Macro Calendar</h1>
+<p class="subtitle" id="current-time">Chargement...</p>
+
+<div id="window-status" class="window-status window-safe">
+  <span>⏱</span>
+  <span id="window-text">Calcul en cours...</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="setTab('today')">Aujourd'hui</div>
+  <div class="tab" onclick="setTab('week')">Cette semaine</div>
+</div>
+
+<div class="impact-legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Haut impact</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Moyen</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4b5563"></div> Faible</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div> Earnings</div>
+</div>
+
+<div id="events-container">
+  <div class="loader">Chargement des événements...</div>
+</div>
+
+<div class="last-update" id="last-update"></div>
+
+<script>
+let currentTab = 'today';
+let allEvents = [];
+let finnhubKey = 'cveq1q9r01qhup9fctcgcveq1q9r01qhup9fctd0'; // Free tier Finnhub
+
+// ── Helpers ──────────────────────────────────────────────
+
+function nowET() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+}
+
+function nowFR() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+}
+
+function toFRTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+}
+
+function toFRDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
+}
+
+function isSameDay(dateStr, refDate) {
+  const d = new Date(dateStr);
+  const dFR = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  return dFR.toDateString() === refDate.toDateString();
+}
+
+function isThisWeek(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+  return d >= weekStart && d < weekEnd;
+}
+
+// ── Fenêtre 19h-21h ──────────────────────────────────────
+
+function updateWindowStatus(events) {
+  const now = nowFR();
+  const todayFR = new Date(now.toDateString());
+
+  // Events aujourd'hui entre 17h et 23h FR
+  const riskyEvents = events.filter(e => {
+    if (!e.date) return false;
+    if (!isSameDay(e.date, todayFR)) return false;
+    const d = new Date(e.date);
+    const hrFR = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' })).getHours();
+    return hrFR >= 17 && hrFR <= 23 && (e.impact === 'High' || e.impact === 'Medium' || e.type === 'earnings');
+  });
+
+  const highRisk = riskyEvents.filter(e => e.impact === 'High' || e.type === 'earnings');
+  const el = document.getElementById('window-status');
+  const txt = document.getElementById('window-text');
+
+  if (highRisk.length > 0) {
+    el.className = 'window-status window-risky';
+    const names = highRisk.slice(0, 2).map(e => e.title).join(', ');
+    txt.textContent = `⚠️ Fenêtre 19h–21h RISQUÉE — ${names}`;
+  } else if (riskyEvents.length > 0) {
+    el.className = 'window-status window-caution';
+    txt.textContent = `⚡ Fenêtre 19h–21h — Prudence (impact moyen détecté)`;
+  } else {
+    el.className = 'window-status window-safe';
+    txt.textContent = `✅ Fenêtre 19h–21h SAFE — Aucun event majeur`;
+  }
+}
+
+// ── Fetch ForexFactory ────────────────────────────────────
+
+async function fetchMacro() {
+  try {
+    const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+    const data = await res.json();
+    // Filtrer USD uniquement + impact Medium/High
+    return data
+      .filter(e => e.country === 'USD' && e.impact !== 'Holiday' && e.impact !== 'Low')
+      .map(e => ({
+        title: e.title,
+        date: e.date,
+        impact: e.impact,
+        forecast: e.forecast,
+        previous: e.previous,
+        country: e.country,
+        type: 'macro'
+      }));
+  } catch(err) {
+    console.error('ForexFactory error:', err);
+    return [];
+  }
+}
+
+// ── Fetch Earnings (Finnhub) ──────────────────────────────
+
+async function fetchEarnings() {
+  try {
+    // Watchlist des symboles qui impactent NQ/ES
+    const symbols = ['AAPL','MSFT','NVDA','META','GOOGL','AMZN','TSLA','AMD','NFLX','ORCL','CRM'];
+    const today = new Date();
+    const from = today.toISOString().split('T')[0];
+    const to = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0];
+
+    const res = await fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${finnhubKey}`);
+    const data = await res.json();
+
+    if (!data.earningsCalendar) return [];
+
+    return data.earningsCalendar
+      .filter(e => symbols.includes(e.symbol))
+      .map(e => ({
+        title: `Earnings ${e.symbol}`,
+        date: e.date + 'T' + (e.hour === 'amc' ? '22:00:00' : '14:00:00') + '-04:00',
+        impact: 'High',
+        forecast: e.revenueEstimate ? `Rev. est. $${(e.revenueEstimate/1e9).toFixed(1)}B` : '',
+        previous: '',
+        country: 'USD',
+        type: 'earnings',
+        symbol: e.symbol,
+        hour: e.hour === 'amc' ? 'Après clôture' : 'Avant ouverture'
+      }));
+  } catch(err) {
+    console.error('Finnhub error:', err);
+    return [];
+  }
+}
+
+// ── Render ────────────────────────────────────────────────
+
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'today') || (i === 1 && tab === 'week'));
+  });
+  renderEvents();
+}
+
+function renderEvents() {
+  const container = document.getElementById('events-container');
+  const todayFR = new Date(nowFR().toDateString());
+
+  let filtered = allEvents.filter(e => {
+    if (currentTab === 'today') return isSameDay(e.date, todayFR);
+    return isThisWeek(e.date);
+  });
+
+  // Trier par date
+  filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="loader">Aucun événement majeur</div>';
+    return;
+  }
+
+  let html = '';
+  let lastDay = '';
+
+  filtered.forEach(e => {
+    const day = toFRDate(e.date);
+    if (currentTab === 'week' && day !== lastDay) {
+      html += `<div class="day-label">${day}</div>`;
+      lastDay = day;
+    }
+
+    const impactClass = e.type === 'earnings' ? 'earnings' : e.impact.toLowerCase();
+    const time = toFRTime(e.date);
+
+    let meta = '';
+    if (e.type === 'earnings') meta = e.hour || '';
+    else if (e.forecast || e.previous) {
+      meta = `<div class="event-values">
+        ${e.forecast ? `<span class="forecast">Prév: ${e.forecast}</span>` : ''}
+        ${e.previous ? `<span class="previous">Préc: ${e.previous}</span>` : ''}
+      </div>`;
+    }
+
+    html += `
+      <div class="event ${impactClass}">
+        <div class="event-dot"></div>
+        <div class="event-time">${time}</div>
+        <div class="event-body">
+          <div class="event-title ${impactClass}">${e.title}</div>
+          ${e.type === 'earnings' ? `<div class="event-meta">${meta}</div>` : meta}
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ── Update clock ──────────────────────────────────────────
+
+function updateClock() {
+  const fr = nowFR();
+  const et = nowET();
+  document.getElementById('current-time').textContent =
+    `🕐 ${fr.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})} FR  |  ${et.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'})} ET`;
+}
+
+// ── Init ──────────────────────────────────────────────────
+
+async function init() {
+  try {
+    const [macro, earnings] = await Promise.all([fetchMacro(), fetchEarnings()]);
+    allEvents = [...macro, ...earnings];
+    updateWindowStatus(allEvents);
+    renderEvents();
+    document.getElementById('last-update').textContent =
+      `Mis à jour à ${nowFR().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}`;
+  } catch(err) {
+    document.getElementById('events-container').innerHTML =
+      `<div class="error-msg">Erreur de chargement — vérifie ta connexion</div>`;
+  }
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+init();
+setInterval(init, 5 * 60 * 1000); // Refresh toutes les 5 min
+</script>
+</body>
+</html>

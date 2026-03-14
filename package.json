@@ -1,0 +1,12 @@
+{
+  "name": "macro-calendar",
+  "version": "1.0.0",
+  "description": "Macro Calendar — Events impacting volatility",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^28.0.0"
+  }
+}
