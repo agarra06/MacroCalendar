@@ -280,7 +280,7 @@ function updateWindowStatus(events, news) {
 
   if (recentLvl1.length > 0) {
     el.className = 'alert-banner alert-danger';
-    txt.textContent = `🚨 ALERTE LIVE — ${recentLvl1[0].title.substring(0,60)}...`;
+    txt.textContent = `🚨 ALERTE LIVE — ${(recentLvl1[0].titleFR||recentLvl1[0].title).substring(0,60)}...`;
   } else if (risky.length > 0) {
     el.className = 'alert-banner alert-caution';
     txt.textContent = `⚡ Fenêtre 19h–21h — ${risky[0].title} détecté`;
@@ -299,7 +299,7 @@ function renderLiveAlerts(news) {
   container.innerHTML = urgent.slice(0,2).map(n => `
     <div class="news-alert">
       <div class="news-alert-label">🚨 Alerte Niveau 1</div>
-      <div class="news-alert-title">${n.title}</div>
+      <div class="news-alert-title">${n.titleFR || n.title}</div>
       <div class="news-alert-source">${n.source} · ${timeAgo(n.date)}</div>
     </div>
   `).join('');
@@ -342,6 +342,34 @@ async function fetchEarnings() {
         symbol: e.symbol, hour: e.hour==='amc'?'Après clôture':'Avant ouverture'
       }));
   } catch(err) { return []; }
+}
+
+// ── Traduction MyMemory ────────────────────────────────────
+
+const _transCache = {};
+async function translateFR(text) {
+  if (_transCache[text]) return _transCache[text];
+  try {
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`);
+    const d = await res.json();
+    const tr = d?.responseData?.translatedText || text;
+    _transCache[text] = tr;
+    return tr;
+  } catch(e) { return text; }
+}
+
+async function translateNews(items) {
+  // Traduire par batch de 5 en parallèle pour ne pas saturer l'API
+  const result = [];
+  for (let i = 0; i < items.length; i += 5) {
+    const batch = items.slice(i, i+5);
+    const translated = await Promise.all(batch.map(async n => ({
+      ...n,
+      titleFR: await translateFR(n.title)
+    })));
+    result.push(...translated);
+  }
+  return result;
 }
 
 // ── Fetch News (MarketWatch + Yahoo via rss2json) ──────────
@@ -456,7 +484,7 @@ function renderNews() {
       <div class="news-item ${n.level}" onclick="window.open('${n.link}','_blank')">
         ${badgeMap[n.level]}
         <div class="event-body">
-          <div class="news-title ${n.level}">${n.title}</div>
+          <div class="news-title ${n.level}">${n.titleFR || n.title}</div>
           <div class="news-meta">${n.source} · ${timeAgo(n.date)}</div>
         </div>
       </div>`;
@@ -488,8 +516,13 @@ function updateClock() {
 }
 
 async function refreshNews() {
-  const news = await fetchNews();
-  allNews = news;
+  const raw = await fetchNews();
+  // Traduire uniquement les news importantes (lvl1, trump, lvl2) + 10 normales
+  const important = raw.filter(n => n.level !== 'normal');
+  const normal = raw.filter(n => n.level === 'normal').slice(0, 10);
+  const toTranslate = [...important, ...normal];
+  const translated = await translateNews(toTranslate);
+  allNews = translated;
   lvl1News = news.filter(n => n.level === 'lvl1');
 
   // Badge count
