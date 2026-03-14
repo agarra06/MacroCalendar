@@ -518,9 +518,9 @@ function updateClock() {
 async function refreshNews() {
   const raw = await fetchNews();
   // Traduire uniquement les news importantes (lvl1, trump, lvl2) + 10 normales
-  const important = raw.filter(n => n.level !== 'normal');
-  const normal = raw.filter(n => n.level === 'normal').slice(0, 10);
-  const toTranslate = [...important, ...normal];
+  const importantNews = raw.filter(n => n.level !== 'normal');
+  const normalNews = raw.filter(n => n.level === 'normal').slice(0, 10);
+  const toTranslate = [...importantNews, ...normalNews];
   const translated = await translateNews(toTranslate);
   allNews = translated;
   lvl1News = news.filter(n => n.level === 'lvl1');
