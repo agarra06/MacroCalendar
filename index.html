@@ -305,11 +305,19 @@ function renderLiveAlerts(news) {
   `).join('');
 }
 
+// ── Timeout helper ─────────────────────────────────────────
+
+function fetchWithTimeout(url, ms = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 // ── Fetch ForexFactory ─────────────────────────────────────
 
 async function fetchMacro() {
   try {
-    const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+    const res = await fetchWithTimeout('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
     const data = await res.json();
     return data
       .filter(e => e.country === 'USD' && e.impact !== 'Holiday' && e.impact !== 'Low')
@@ -329,7 +337,7 @@ async function fetchEarnings() {
     const today = new Date();
     const from = today.toISOString().split('T')[0];
     const to = new Date(today.getTime()+7*86400000).toISOString().split('T')[0];
-    const res = await fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=cveq1q9r01qhup9fctcgcveq1q9r01qhup9fctd0`);
+    const res = await fetchWithTimeout(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=cveq1q9r01qhup9fctcgcveq1q9r01qhup9fctd0`);
     const data = await res.json();
     if (!data.earningsCalendar) return [];
     return data.earningsCalendar
@@ -350,7 +358,7 @@ const _transCache = {};
 async function translateFR(text) {
   if (_transCache[text]) return _transCache[text];
   try {
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`);
+    const res = await fetchWithTimeout(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`, 5000);
     const d = await res.json();
     const tr = d?.responseData?.translatedText || text;
     _transCache[text] = tr;
@@ -382,7 +390,7 @@ async function fetchNews() {
   let items = [];
   for (const src of sources) {
     try {
-      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src)}`);
+      const res = await fetchWithTimeout(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src)}`);
       const data = await res.json();
       if (data.status === 'ok' && data.items) {
         items = items.concat(data.items.map(i => ({
@@ -546,11 +554,12 @@ async function init() {
   try {
     const [macro, earnings] = await Promise.all([fetchMacro(), fetchEarnings()]);
     allEvents = [...macro, ...earnings];
-    await refreshNews();
-    renderEvents();
+    renderEvents(); // Afficher les events macro même si les news sont lentes
+    refreshNews().then(renderEvents).catch(() => {}); // News en arrière-plan
   } catch(err) {
     document.getElementById('main-container').innerHTML =
       `<div style="color:#f87171;padding:20px;font-size:12px">Erreur de chargement — vérifie ta connexion</div>`;
+    document.getElementById('window-text').textContent = '⚠️ Erreur de connexion';
   }
 }
 
