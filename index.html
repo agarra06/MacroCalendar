@@ -421,6 +421,7 @@ function renderEvents() {
     currentTab === 'today' ? isSameDay(e.date, todayFR) : isThisWeek(e.date)
   ).sort((a,b) => new Date(a.date)-new Date(b.date));
 
+  updateWindowStatus(allEvents, liveNews);
   if (!filtered.length) {
     container.innerHTML = '<div class="loader">Aucun événement majeur</div>';
     return;
@@ -554,8 +555,16 @@ async function init() {
   try {
     const [macro, earnings] = await Promise.all([fetchMacro(), fetchEarnings()]);
     allEvents = [...macro, ...earnings];
-    renderEvents(); // Afficher les events macro même si les news sont lentes
-    refreshNews().then(renderEvents).catch(() => {}); // News en arrière-plan
+    // Si pas d'events aujourd'hui, basculer sur la semaine auto
+    const todayFR = new Date(nowFR().toDateString());
+    const todayEvents = allEvents.filter(e => isSameDay(e.date, todayFR));
+    if (todayEvents.length === 0 && currentTab === 'today') {
+      currentTab = 'week';
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab')[1].classList.add('active');
+    }
+    renderEvents();
+    refreshNews().then(renderEvents).catch(() => {});
   } catch(err) {
     document.getElementById('main-container').innerHTML =
       `<div style="color:#f87171;padding:20px;font-size:12px">Erreur de chargement — vérifie ta connexion</div>`;
