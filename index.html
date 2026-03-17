@@ -317,7 +317,8 @@ function fetchWithTimeout(url, ms = 8000) {
 
 async function fetchMacro() {
   try {
-    const res = await fetchWithTimeout('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+    // Lire depuis le cache local (mis à jour par GitHub Action toutes les 6h)
+    const res = await fetchWithTimeout('/MacroCalendar/data/calendar.json');
     const data = await res.json();
     return data
       .filter(e => e.country === 'USD' && e.impact !== 'Holiday' && e.impact !== 'Low')
@@ -332,24 +333,8 @@ async function fetchMacro() {
 // ── Fetch Earnings (Finnhub free public endpoint) ─────────
 
 async function fetchEarnings() {
-  try {
-    const symbols = ['AAPL','MSFT','NVDA','META','GOOGL','AMZN','TSLA','AMD','NFLX','ORCL'];
-    const today = new Date();
-    const from = today.toISOString().split('T')[0];
-    const to = new Date(today.getTime()+7*86400000).toISOString().split('T')[0];
-    const res = await fetchWithTimeout(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=cveq1q9r01qhup9fctcgcveq1q9r01qhup9fctd0`);
-    const data = await res.json();
-    if (!data.earningsCalendar) return [];
-    return data.earningsCalendar
-      .filter(e => symbols.includes(e.symbol))
-      .map(e => ({
-        title: `Earnings ${e.symbol}`,
-        date: e.date+'T'+(e.hour==='amc'?'22':'14')+':00:00-04:00',
-        impact: 'High', forecast: '', previous: '',
-        actual: '', country: 'USD', type: 'earnings',
-        symbol: e.symbol, hour: e.hour==='amc'?'Après clôture':'Avant ouverture'
-      }));
-  } catch(err) { return []; }
+  // Finnhub clé expirée — earnings désactivés temporairement
+  return [];
 }
 
 // ── Traduction MyMemory ────────────────────────────────────

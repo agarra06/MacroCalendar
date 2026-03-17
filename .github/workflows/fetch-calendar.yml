@@ -1,0 +1,30 @@
+name: Fetch Macro Calendar
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # toutes les 6h
+  workflow_dispatch:         # déclenchable manuellement
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch ForexFactory calendar
+        run: |
+          mkdir -p data
+          curl -s "https://nfs.faireconomy.media/ff_calendar_thisweek.json" \
+            -H "Accept: application/json" \
+            -o data/calendar.json
+          echo "Fetched $(cat data/calendar.json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))') events"
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/calendar.json
+          git diff --cached --quiet || git commit -m "chore: update calendar data [skip ci]"
+          git push
